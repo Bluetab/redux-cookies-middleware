@@ -1,5 +1,18 @@
-import _ from 'lodash';
+import {
+  compose,
+  reduce,
+  set,
+  toPairs,
+  mapValues,
+  pickBy,
+  negate,
+  has,
+  isUndefined
+} from 'lodash/fp';
 import { getCookie as getBrowserCookie } from './cookieApi';
+
+const deepClone = (state) => JSON.parse(JSON.stringify(state));
+const setValue = (acc, pair) => set(pair[0], pair[1])(acc);
 
 /**
  * read browser cookie into state
@@ -12,17 +25,14 @@ const getStateFromCookies = (
     preloadedState,
     paths,
     getCookie = getBrowserCookie
-) => {
-  const cookieValues = _.mapValues(
-    paths,
-    (value, key, object) => getCookie(_.get(value, "name"))
-  );
-
-  return _.reduce(
-    cookieValues,
-    (res, value, key) => (value !== undefined) ? _.set(res, key, JSON.parse(value)) : res,
-    preloadedState
-  );
-};
+) =>
+  compose(
+    reduce(setValue, deepClone(preloadedState)),
+    toPairs,
+    mapValues(JSON.parse),
+    pickBy(negate(isUndefined)),
+    mapValues(({name}) => getCookie(name)),
+    pickBy(has("name"))
+  )(paths);
 
 export default getStateFromCookies;
